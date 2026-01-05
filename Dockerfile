@@ -4,6 +4,10 @@ FROM runpod/worker-comfyui:5.5.1-base
 # Set Hugging Face token (build argument)
 ARG HF_TOKEN
 ARG CIVITAI_TOKEN
+# R2 credentials for downloading models
+ARG R2_ENDPOINT
+ARG R2_ACCESS_KEY_ID
+ARG R2_SECRET_ACCESS_KEY
 
 ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
 ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
@@ -35,10 +39,22 @@ RUN comfy model download --url "https://civitai.com/api/download/models/156841?t
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true --relative-path models/upscale_models --filename 4x-UltraSharp.pth
 # https://civitai.com/api/download/models/2052724?type=Model&format=PickleTensor
 
+# Install rclone for R2 downloads
+RUN curl https://rclone.org/install.sh | bash
 
-# copy lora models
-COPY lora_Flux_Dev_4-step.safetensors models/loras
-COPY shuimo_BRairt.F1_V1.safetensors models/loras
+# Configure rclone for R2 (non-interactive)
+RUN mkdir -p /root/.config/rclone && \
+    echo "[myR2]" > /root/.config/rclone/rclone.conf && \
+    echo "type = s3" >> /root/.config/rclone/rclone.conf && \
+    echo "provider = Cloudflare" >> /root/.config/rclone/rclone.conf && \
+    echo "access_key_id = ${R2_ACCESS_KEY_ID}" >> /root/.config/rclone/rclone.conf && \
+    echo "secret_access_key = ${R2_SECRET_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf && \
+    echo "endpoint = ${R2_ENDPOINT}" >> /root/.config/rclone/rclone.conf && \
+    echo "acl = private" >> /root/.config/rclone/rclone.conf
+
+# Download lora models from R2
+RUN rclone copyto myR2:my-ai-models/models/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
+RUN rclone copyto myR2:my-ai-models/models/shuimo_BRairt.F1_V1.safetensors models/loras
 
 # Optional: other models (commented out for now)
 # RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
