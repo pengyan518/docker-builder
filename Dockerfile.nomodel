@@ -1,0 +1,11 @@
+# start from a clean base image (replace <version> with the desired release)
+FROM runpod/worker-comfyui:5.5.0-base
+
+# Set Hugging Face token (build argument)
+ARG HF_TOKEN
+ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
+ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
+
+# 2. 用你本地修复后的版本，覆盖掉镜像中路径错误的版本
+#    我们从这个Dockerfile中知道了确切路径
+COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml

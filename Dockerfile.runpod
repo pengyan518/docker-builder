@@ -1,0 +1,172 @@
+# Dockerfile.runpod
+# 优化的 RunPod Serverless 镜像
+# 
+# 特性:
+# 1. 基于 RunPod 官方 PyTorch 镜像
+# 2. 预安装 ComfyUI 和所有依赖
+# 3. 优化层缓存，减少构建时间
+# 4. 支持网络存储卷挂载
+# 5. 最小化镜像大小
+
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 设置工作目录
+WORKDIR /workspace
+
+# ===== 第一层: 系统依赖 =====
+# 这一层很少变化，可以被缓存
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    wget \
+    curl \
+    ca-certificates \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# ===== 第二层: ComfyUI 安装 =====
+# ComfyUI 本身不常更新，可以缓存
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI && \
+    cd /workspace/ComfyUI && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+        xformers \
+        opencv-python \
+        pillow
+
+# ===== 第三层: 应用依赖 =====
+# 先复制依赖文件，利用 Docker 缓存
+COPY pyproject.toml /workspace/app/
+COPY requirements_comfyui.txt /workspace/app/
+
+WORKDIR /workspace/app
+
+# 安装 Python 依赖
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    runpod \
+    httpx \
+    websockets \
+    supabase \
+    boto3 \
+    python-dotenv \
+    pydantic \
+    pydantic-settings \
+    python-multipart
+
+# ===== 第四层: 应用代码 =====
+# 这一层最常变化，放在最后
+COPY app/ /workspace/app/app/
+COPY core/ /workspace/app/core/
+COPY runpod_handler.py /workspace/app/
+COPY workflow/ /workspace/app/workflow/
+
+# ===== 第五层: ComfyUI 自定义节点（可选） =====
+# 如果需要特定的自定义节点，在这里安装
+# RUN cd /workspace/ComfyUI/custom_nodes && \
+#     git clone https://github.com/ltdrdata/ComfyUI-Manager.git
+
+# ===== 配置 =====
+# 创建必要的目录
+RUN mkdir -p \
+    /workspace/ComfyUI/models/checkpoints \
+    /workspace/ComfyUI/models/vae \
+    /workspace/ComfyUI/models/loras \
+    /workspace/ComfyUI/models/embeddings \
+    /workspace/ComfyUI/models/unet \
+    /workspace/ComfyUI/models/clip \
+    /workspace/ComfyUI/models/diffusion_models \
+    /workspace/ComfyUI/models/text_encoders \
+    /workspace/ComfyUI/models/controlnet \
+    /workspace/ComfyUI/output \
+    /workspace/ComfyUI/input \
+    /runpod-volume/models
+
+# 设置 ComfyUI 环境变量
+ENV COMFYUI_DIR=/workspace/ComfyUI \
+    COMFYUI_MODEL_DIR=/workspace/ComfyUI/models \
+    PYTHONPATH=/workspace/app:/workspace/ComfyUI
+
+# ===== 可选: 预下载热门模型 =====
+# 这会显著增加镜像大小（每个模型 2-7GB），但可以减少冷启动时间
+# 建议只预装 1-2 个最常用的模型
+#
+# 方式1: 从 Hugging Face 下载
+# RUN cd /workspace/ComfyUI/models/checkpoints && \
+#     wget -O sd_xl_base_1.0.safetensors \
+#     "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors"
+#
+# 方式2: 从 R2 复制（需要在构建时提供凭证）
+# COPY scripts/preload_models.sh /tmp/
+# RUN bash /tmp/preload_models.sh
+
+# ===== 健康检查 =====
+# RunPod Serverless 不需要暴露端口，但保留用于调试
+EXPOSE 8188
+
+# ===== 启动脚本 =====
+# 创建启动脚本，先启动 ComfyUI，再启动 RunPod handler
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "🚀 Starting ComfyUI..."\n\
+cd /workspace/ComfyUI\n\
+python main.py --listen 0.0.0.0 --port 8188 &\n\
+COMFYUI_PID=$!\n\
+\n\
+echo "⏳ Waiting for ComfyUI to be ready..."\n\
+for i in {1..30}; do\n\
+    if curl -s http://localhost:8188/system_stats > /dev/null 2>&1; then\n\
+        echo "✅ ComfyUI is ready!"\n\
+        break\n\
+    fi\n\
+    echo "Waiting... ($i/30)"\n\
+    sleep 2\n\
+done\n\
+\n\
+echo "🎯 Starting RunPod Serverless Handler..."\n\
+cd /workspace/app\n\
+python -u runpod_handler.py\n\
+' > /start.sh && chmod +x /start.sh
+
+# ===== 设置启动命令 =====
+CMD ["/start.sh"]
+
+# ===== 镜像元数据 =====
+LABEL maintainer="your-email@example.com" \
+      description="RunPod Serverless ComfyUI Image Generation API" \
+      version="1.0.0"
+
+# ===== 构建说明 =====
+# 
+# 构建镜像:
+#   docker build -f Dockerfile.runpod -t your-registry/comfyui-serverless:latest .
+#
+# 推送到 Docker Hub:
+#   docker push your-registry/comfyui-serverless:latest
+#
+# 本地测试:
+#   docker run --rm -it \
+#     -e SUPABASE_URL="your_url" \
+#     -e SUPABASE_SERVICE_KEY="your_key" \
+#     -e R2_ENDPOINT="your_endpoint" \
+#     -e R2_ACCESS_KEY_ID="your_key" \
+#     -e R2_SECRET_ACCESS_KEY="your_secret" \
+#     -e R2_BUCKET_NAME="your_bucket" \
+#     --gpus all \
+#     your-registry/comfyui-serverless:latest
+#
+# 优化建议:
+# 1. 使用多阶段构建进一步减小镜像大小
+# 2. 预下载 1-2 个最常用模型到镜像中
+# 3. 使用 .dockerignore 排除不必要的文件
+# 4. 定期更新基础镜像以获取安全补丁

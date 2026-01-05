@@ -1,0 +1,36 @@
+# start from a clean base image (replace <version> with the desired release)
+FROM runpod/worker-comfyui:5.5.1-base
+
+# Set Hugging Face token (build argument)
+ARG HF_TOKEN
+ARG CIVITAI_TOKEN
+
+ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
+ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
+
+# install custom nodes using comfy-cli
+# RUN comfy-node-install was-node-suite-comfyui
+RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
+RUN comfy-node-install https://github.com/pythongosssss/ComfyUI-Custom-Scripts
+# download models using comfy-cli
+# the "--filename" is what you use in your ComfyUI workflow
+
+# Download model from Civitai with authentication (Osamu Tezuka) DreamShaper XL https://civitai.com/models/112902?modelVersionId=354657
+RUN comfy model download --url "https://civitai.com/api/download/models/354657?type=Model&format=SafeTensor&size=full&fp=fp16&token=${CIVITAI_TOKEN}" --relative-path models/checkpoints --filename dreamshaperXL_lightningDPMSDE.safetensors
+
+# Download LoRA model from Civitai with authentication (Osamu Tezuka) Tezuka_Osamu
+RUN comfy model download --url "https://civitai.com/api/download/models/346456?type=Model&format=SafeTensor&token=${CIVITAI_TOKEN}" --relative-path models/loras --filename osamu_tezuka_xl_v1.safetensors
+
+
+# Download upscale_models from Civitai with authentication (Osamu Tezuka) 8xNMKDSuperscale_150000G.pt
+RUN comfy model download --url "https://civitai.com/api/download/models/328284?type=Model&format=PickleTensor&token=${CIVITAI_TOKEN}" --relative-path models/upscale_models --filename 8xNMKDSuperscale_150000G.pt
+
+# https://huggingface.co/uwg/upscaler/resolve/main/ESRGAN/8x_NMKD-Superscale_150000_G.pth
+
+# Optional: other models (commented out for now)
+# RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
+# RUN comfy model download --url https://huggingface.co/lllyasviel/ic-light/resolve/main/iclight_sd15_fcon.safetensors --relative-path models/diffusion_models --filename iclight_sd15_fcon.safetensors
+
+# Copy local static input files into the ComfyUI input directory (delete if not needed)
+# Assumes you have an 'input' folder next to your Dockerfile
+# COPY input/ /comfyui/input/
