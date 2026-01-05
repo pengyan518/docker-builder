@@ -40,7 +40,9 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingfac
 # https://civitai.com/api/download/models/2052724?type=Model&format=PickleTensor
 
 # Install rclone for R2 downloads
-RUN curl https://rclone.org/install.sh | bash
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    curl https://rclone.org/install.sh | bash && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure rclone for R2 (non-interactive)
 RUN mkdir -p /root/.config/rclone && \
@@ -54,7 +56,7 @@ RUN mkdir -p /root/.config/rclone && \
 
 # Download lora models from R2
 RUN rclone copyto myR2:my-ai-models/models/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
-RUN rclone copyto myR2:my-ai-models/models/shuimo_BRairt.F1_V1.safetensors models/loras
+RUN rclone copyto myR2:my-ai-models/models/shuimo_BRairt.F1_V1.safetensors /comfyui/models/loras/shuimo_BRairt.F1_V1.safetensors --config /root/.config/rclone/rclone.conf
 
 # Optional: other models (commented out for now)
 # RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors

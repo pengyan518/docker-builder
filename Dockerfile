@@ -40,7 +40,9 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingfac
 # https://civitai.com/api/download/models/2052724?type=Model&format=PickleTensor
 
 # Install rclone for R2 downloads
-RUN curl https://rclone.org/install.sh | bash
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    curl https://rclone.org/install.sh | bash && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Configure rclone for R2 (non-interactive)
 RUN mkdir -p /root/.config/rclone && \
