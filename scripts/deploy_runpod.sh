@@ -376,7 +376,7 @@ test_image_locally() {
     #     "${FULL_IMAGE_NAME}"
 	# docker stop runpod-test
 	# docker rm -f runpod-test 2>/dev/null || true
-	# docker run -d --name runpod-test --gpus all -p 8188:8188 enhou/runpod-comfyui-serverless-tezuka-lora:latest python /comfyui/main.py --listen 0.0.0.0 --port 8188
+	# docker run -d --name runpod-test --gpus all -p 8188:8188 enhou/runpod-comfyui-serverless-upscale-lora:latest python /comfyui/main.py --listen 0.0.0.0 --port 8188
 	docker run -d \
 		--name runpod-test \
 		--gpus all \
