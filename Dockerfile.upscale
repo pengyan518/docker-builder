@@ -55,8 +55,8 @@ RUN mkdir -p /root/.config/rclone && \
     echo "acl = private" >> /root/.config/rclone/rclone.conf
 
 # Download lora models from R2
-RUN rclone copyto myR2:my-ai-models/models/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
-RUN rclone copyto myR2:my-ai-models/models/shuimo_BRairt.F1_V1.safetensors /comfyui/models/loras/shuimo_BRairt.F1_V1.safetensors --config /root/.config/rclone/rclone.conf
+RUN rclone copyto myR2:my-ai-models/models/lora/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
+RUN rclone copyto myR2:my-ai-models/models/lora/shuimo_BRairt.F1_V1.safetensors /comfyui/models/loras/shuimo_BRairt.F1_V1.safetensors --config /root/.config/rclone/rclone.conf
 
 # Optional: other models (commented out for now)
 # RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
