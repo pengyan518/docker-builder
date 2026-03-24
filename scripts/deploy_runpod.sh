@@ -255,11 +255,7 @@ build_image() {
         
         docker buildx build \
             --platform "${DOCKER_PLATFORM}" \
-            --build-arg HF_TOKEN="${HF_TOKEN}" \
-			--build-arg CIVITAI_TOKEN="${CIVITAI_TOKEN}" \
-			--build-arg R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}" \
-			--build-arg R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}" \
-			--build-arg R2_ENDPOINT="${R2_ENDPOINT}" \
+            --build-arg HF_TOKEN="${HF_TOKEN:-}" \
             -f Dockerfile \
             -t "${FULL_IMAGE_NAME}" \
             --load \
@@ -274,12 +270,8 @@ build_image() {
         docker build \
             -f Dockerfile \
             -t "${FULL_IMAGE_NAME}" \
-            --build-arg HF_TOKEN="${HF_TOKEN}" \
+            --build-arg HF_TOKEN="${HF_TOKEN:-}" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
-			--build-arg CIVITAI_TOKEN="${CIVITAI_TOKEN}" \
-			--build-arg R2_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}" \
-			--build-arg R2_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}" \
-			--build-arg R2_ENDPOINT="${R2_ENDPOINT}" \
             --progress=plain \
             .
     fi
@@ -323,6 +315,7 @@ build_and_push_image() {
         --platform "${DOCKER_PLATFORM}" \
         -f Dockerfile \
         -t "${FULL_IMAGE_NAME}" \
+        --build-arg HF_TOKEN="${HF_TOKEN:-}" \
         --push \
         --progress=plain \
         .

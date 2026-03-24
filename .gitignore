@@ -1,2 +1,7 @@
 /.DS_Store
 /scripts/on_start.sh
+
+# Secrets and local model staging (Network Volume upload script)
+.env
+model_staging/
+/workflow/credentials.txt

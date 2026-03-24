@@ -1,22 +1,9 @@
-# start from a clean base image (replace <version> with the desired release)
+# Same as Dockerfile (Network Volume for models).
 FROM runpod/worker-comfyui:5.8.5-base
 
-# Set Hugging Face token (build argument)
-ARG HF_TOKEN
-ARG CIVITAI_TOKEN
-# R2 credentials for downloading models
-ARG R2_ENDPOINT
-ARG R2_ACCESS_KEY_ID
-ARG R2_SECRET_ACCESS_KEY
-
+ARG HF_TOKEN=""
 ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
 ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
-
-# install custom nodes using comfy-cli
-# RUN comfy-node-install was-node-suite-comfyui
-# RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
-# RUN comfy-node-install https://github.com/pythongosssss/ComfyUI-Custom-Scripts
-# RUN comfy-node-install https://github.com/cubiq/ComfyUI_essentials
 
 RUN comfy-node-install https://github.com/ltdrdata/ComfyUI-Impact-Pack
 RUN comfy-node-install https://github.com/rgthree/rgthree-comfy
@@ -25,53 +12,15 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
 
-# download models using comfy-cli
-# the "--filename" is what you use in your ComfyUI workflow
-# Download FLUX UNET model (注意：FLUX 模型应放在 models/unet 而不是 checkpoints)
-RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/flux1-dev.safetensors --relative-path models/unet --filename flux1-dev.safetensors
+COPY scripts/start_with_runpod_volume.sh /usr/local/bin/start_with_runpod_volume.sh
+RUN chmod +x /usr/local/bin/start_with_runpod_volume.sh
 
-# Download VAE model
-RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/black-forest-labs/FLUX.1-dev/resolve/main/ae.safetensors --relative-path models/vae --filename ae.safetensors
+CMD ["/usr/local/bin/start_with_runpod_volume.sh"]
 
-# Download CLIP models for FLUX
-RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn.safetensors?download=true --relative-path models/clip --filename t5xxl_fp8_e4m3fn.safetensors
-RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors?download=true --relative-path models/clip --filename clip_l.safetensors
-
-# Download upscale_models 4x_NMKD-Superscale
-# RUN comfy model download --url "https://civitai.com/api/download/models/156841?type=Model&format=PickleTensor&token=${CIVITAI_TOKEN}" --relative-path models/upscale_models --filename 4x_NMKD-Superscale.pt
-# Download upscale_models 4x-UltraSharp
-RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true --relative-path models/upscale_models --filename 4x-UltraSharp.pth
-# https://civitai.com/api/download/models/2052724?type=Model&format=PickleTensor
-
-# Install rclone for R2 downloads
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unzip && \
-    curl https://rclone.org/install.sh | bash && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Configure rclone for R2 (non-interactive)
-RUN mkdir -p /root/.config/rclone && \
-    echo "[myR2]" > /root/.config/rclone/rclone.conf && \
-    echo "type = s3" >> /root/.config/rclone/rclone.conf && \
-    echo "provider = Cloudflare" >> /root/.config/rclone/rclone.conf && \
-    echo "access_key_id = ${R2_ACCESS_KEY_ID}" >> /root/.config/rclone/rclone.conf && \
-    echo "secret_access_key = ${R2_SECRET_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf && \
-    echo "endpoint = ${R2_ENDPOINT}" >> /root/.config/rclone/rclone.conf && \
-    echo "acl = private" >> /root/.config/rclone/rclone.conf
-
-# Download lora models from R2
-RUN rclone copyto myR2:my-ai-models/models/lora/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
-# RUN rclone copyto myR2:my-ai-models/models/lora/shuimo_BRairt.F1_V1.safetensors /comfyui/models/loras/shuimo_BRairt.F1_V1.safetensors --config /root/.config/rclone/rclone.conf
-
-# Optional: other models (commented out for now)
+# Optional: other models (commented out)
 # RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
 # RUN comfy model download --url https://huggingface.co/lllyasviel/ic-light/resolve/main/iclight_sd15_fcon.safetensors --relative-path models/diffusion_models --filename iclight_sd15_fcon.safetensors
-
-# Copy local static input files into the ComfyUI input directory (delete if not needed)
-# Assumes you have an 'input' folder next to your Dockerfile
 # COPY input/ /comfyui/input/
-
-
-
 # RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/camenduru/SUPIR/resolve/main/SUPIR-v0F.ckpt?download=true --relative-path models/upscale_models --filename SUPIR-v0F.ckpt
-# RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/camenduru/SUPIR/resolve/main/SUPIR-v0Q.ckpt?download=true --relative-path models/upscale_models --filename SUPIR-v0Q.ckpt

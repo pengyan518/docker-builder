@@ -1,6 +1,9 @@
+# Matches runpod-workers/worker-comfyui: models on Network Volume at /runpod-volume/models/...
+# When using scripts/start_with_runpod_volume.sh, /comfyui/models is symlinked to this path;
+# these entries remain valid as secondary paths (same physical files).
 runpod_worker_comfy:
   base_path: /runpod-volume
-  checkpoints: models/  # <-- 修复后的路径
+  checkpoints: models/checkpoints/
   clip: models/clip/
   clip_vision: models/clip_vision/
   configs: models/configs/
