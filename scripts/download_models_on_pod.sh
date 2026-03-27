@@ -4,8 +4,10 @@
 # Run this script INSIDE a RunPod Pod that has the Network Volume mounted.
 # Models are downloaded directly to the volume — no S3 API needed.
 #
-# Prerequisites (run once in the Pod terminal):
-#   pip install -q "huggingface_hub[cli]"
+# Hugging Face CLI: the script auto-installs via pip when missing (unless --no-install-cli).
+# You can also install manually:
+#   python3 -m pip install --user -U "huggingface_hub[cli]"
+#   export PATH="$HOME/.local/bin:$PATH"
 #
 # Usage:
 #   export HF_TOKEN=hf_xxx
@@ -23,6 +25,7 @@
 #   --skip-upscale       Skip 4x-UltraSharp
 #   --skip-lora          Skip LoRA (from R2; requires R2_* env vars)
 #   --dry-run            Print actions without downloading
+#   --no-install-cli     Do not run pip install; fail if hf / huggingface-cli missing
 #   -h, --help           Show this help
 
 set -euo pipefail
@@ -36,10 +39,61 @@ SKIP_LLAMA=false
 SKIP_UPSCALE=false
 SKIP_LORA=false
 DRY_RUN=false
+NO_INSTALL_CLI=false
+
+# hf | huggingface-cli (set by ensure_hf_cli)
+_HF_SUBCMD=""
 
 log()  { echo "[pod-download] $*"; }
 warn() { echo "[pod-download] WARN: $*" >&2; }
 die()  { echo "[pod-download] ERROR: $*" >&2; exit 1; }
+
+# Typical install paths for pip --user
+_hf_export_path() {
+  export PATH="${HOME}/.local/bin:/root/.local/bin:${PATH}"
+}
+
+ensure_hf_cli() {
+  _hf_export_path
+  if command -v hf >/dev/null 2>&1; then
+    _HF_SUBCMD="hf"
+    log "Using: $(command -v hf)"
+    return 0
+  fi
+  if command -v huggingface-cli >/dev/null 2>&1; then
+    _HF_SUBCMD="huggingface-cli"
+    log "Using: $(command -v huggingface-cli)"
+    return 0
+  fi
+  if $NO_INSTALL_CLI; then
+    die "Neither 'hf' nor 'huggingface-cli' found. Install with: python3 -m pip install --user -U 'huggingface_hub[cli]' && export PATH=\"\$HOME/.local/bin:\$PATH\""
+  fi
+  log "Installing huggingface_hub[cli] via pip (--user) ..."
+  if $DRY_RUN; then
+    echo "[DRY-RUN] python3 -m pip install --user -U huggingface_hub[cli]"
+    _HF_SUBCMD="hf"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m pip install --user -q -U "huggingface_hub[cli]"
+  elif command -v pip3 >/dev/null 2>&1; then
+    pip3 install --user -q -U "huggingface_hub[cli]"
+  else
+    die "No python3/pip3. Install Python 3 + pip, then: pip install 'huggingface_hub[cli]'"
+  fi
+  _hf_export_path
+  if command -v hf >/dev/null 2>&1; then
+    _HF_SUBCMD="hf"
+    log "Using: $(command -v hf)"
+    return 0
+  fi
+  if command -v huggingface-cli >/dev/null 2>&1; then
+    _HF_SUBCMD="huggingface-cli"
+    log "Using: $(command -v huggingface-cli)"
+    return 0
+  fi
+  die "CLI still not on PATH after pip. Run: python3 -m pip install --user -U 'huggingface_hub[cli]' && export PATH=\"\$HOME/.local/bin:\$PATH\" && hash -r"
+}
 
 # ===== Argument parsing =====
 while [[ $# -gt 0 ]]; do
@@ -52,8 +106,9 @@ while [[ $# -gt 0 ]]; do
     --skip-upscale) SKIP_UPSCALE=true; shift ;;
     --skip-lora)    SKIP_LORA=true;    shift ;;
     --dry-run)      DRY_RUN=true;      shift ;;
+    --no-install-cli) NO_INSTALL_CLI=true; shift ;;
     -h|--help)
-      sed -n '2,30p' "$0" | grep '^#' | sed 's/^# \?//'
+      sed -n '2,40p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
       ;;
     *) die "Unknown option: $1" ;;
@@ -66,6 +121,8 @@ done
 
 MODELS="${VOLUME_PATH}/models"
 
+ensure_hf_cli
+
 run() {
   if $DRY_RUN; then
     echo "[DRY-RUN] $*"
@@ -74,17 +131,24 @@ run() {
   "$@"
 }
 
-# huggingface-cli wrapper with resume support
+# Hugging Face snapshot download (supports `hf` or legacy `huggingface-cli`)
 hf_download() {
   local repo="$1"; shift
   local dest="$1"; shift
-  # remaining args are passed as --include patterns or extra flags
+  # remaining args are passed as --include / --exclude patterns or extra flags
   log "HF download: ${repo} -> ${dest}"
-  run huggingface-cli download "${repo}" \
-    --token "${HF_TOKEN}" \
-    --local-dir "${dest}" \
-    --local-dir-use-symlinks False \
-    "$@"
+  if [[ "${_HF_SUBCMD}" == "hf" ]]; then
+    run hf download "${repo}" \
+      --token "${HF_TOKEN}" \
+      --local-dir "${dest}" \
+      "$@"
+  else
+    run huggingface-cli download "${repo}" \
+      --token "${HF_TOKEN}" \
+      --local-dir "${dest}" \
+      --local-dir-use-symlinks False \
+      "$@"
+  fi
 }
 
 # Single-file curl download with skip-if-exists
