@@ -11,6 +11,8 @@
 #
 # Usage:
 #   export HF_TOKEN=hf_xxx
+#   # Optional LoRA from R2: put the same R2_* vars in the shell, or copy your .env into the Pod
+#   # (e.g. scp .env pod:/workspace/.env) — this script auto-loads ./.env if present.
 #   bash download_models_on_pod.sh
 #
 #   # Or skip sections you already have:
@@ -26,9 +28,12 @@
 #   --skip-lora          Skip LoRA (from R2; requires R2_* env vars)
 #   --dry-run            Print actions without downloading
 #   --no-install-cli     Do not run pip install; fail if hf / huggingface-cli missing
+#   --no-install-aws     Do not pip-install awscli; fail if aws missing (needed for R2 LoRA)
 #   -h, --help           Show this help
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ===== Defaults =====
 VOLUME_PATH="/workspace"
@@ -40,6 +45,7 @@ SKIP_UPSCALE=false
 SKIP_LORA=false
 DRY_RUN=false
 NO_INSTALL_CLI=false
+NO_INSTALL_AWS=false
 
 # hf | huggingface-cli (set by ensure_hf_cli)
 _HF_SUBCMD=""
@@ -95,6 +101,41 @@ ensure_hf_cli() {
   die "CLI still not on PATH after pip. Run: python3 -m pip install --user -U 'huggingface_hub[cli]' && export PATH=\"\$HOME/.local/bin:\$PATH\" && hash -r"
 }
 
+ensure_aws_cli() {
+  _hf_export_path
+  if command -v aws >/dev/null 2>&1; then
+    log "Using aws: $(command -v aws)"
+    return 0
+  fi
+  if $NO_INSTALL_AWS; then
+    die "aws CLI not found (pod has no aws). Install: python3 -m pip install --user awscli && export PATH=\"\$HOME/.local/bin:\$PATH\""
+  fi
+  if $DRY_RUN; then
+    echo "[DRY-RUN] python3 -m pip install --user awscli"
+    return 0
+  fi
+  log "Installing awscli via pip (--user) for R2 copy ..."
+  python3 -m pip install --user -q awscli 2>/dev/null || pip3 install --user -q awscli
+  _hf_export_path
+  command -v aws >/dev/null 2>&1 || die "aws still not found after pip install. Run: python3 -m pip install --user awscli"
+  log "Using aws: $(command -v aws)"
+}
+
+# Loads R2_*, HF_TOKEN, etc. from a local .env if you copied it onto the Pod (not from git).
+load_dotenv_if_present() {
+  local f
+  for f in "./.env" "${SCRIPT_DIR}/../.env" "${VOLUME_PATH}/.env"; do
+    if [[ -f "$f" ]]; then
+      log "Loading env file: $f"
+      set -a
+      # shellcheck source=/dev/null
+      source "$f"
+      set +a
+      return 0
+    fi
+  done
+}
+
 # ===== Argument parsing =====
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -107,8 +148,9 @@ while [[ $# -gt 0 ]]; do
     --skip-lora)    SKIP_LORA=true;    shift ;;
     --dry-run)      DRY_RUN=true;      shift ;;
     --no-install-cli) NO_INSTALL_CLI=true; shift ;;
+    --no-install-aws) NO_INSTALL_AWS=true; shift ;;
     -h|--help)
-      sed -n '2,40p' "$0" | grep '^#' | sed 's/^# \?//'
+      sed -n '2,45p' "$0" | grep '^#' | sed 's/^# \?//'
       exit 0
       ;;
     *) die "Unknown option: $1" ;;
@@ -116,8 +158,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ===== Validate =====
-[[ -n "${HF_TOKEN:-}" ]] || die "HF_TOKEN is not set. Run: export HF_TOKEN=hf_xxx"
 [[ -d "${VOLUME_PATH}" ]] || die "Volume path not found: ${VOLUME_PATH}. Is the Network Volume mounted?"
+
+load_dotenv_if_present
+
+[[ -n "${HF_TOKEN:-}" ]] || die "HF_TOKEN is not set. Export it or add HF_TOKEN= to a .env next to the script (e.g. copy .env to the Pod)."
 
 MODELS="${VOLUME_PATH}/models"
 
@@ -259,6 +304,8 @@ if ! $SKIP_LORA; then
       log "Skip (exists): ${LORA_DEST}"
     else
       log "=== LoRA from R2: s3://${R2_BUCKET_NAME}/${R2_KEY} ==="
+      ensure_aws_cli
+      mkdir -p "$(dirname "${LORA_DEST}")"
       run env \
         AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}" \
         AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}" \
