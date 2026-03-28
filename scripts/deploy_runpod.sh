@@ -83,7 +83,7 @@ RunPod Serverless 部署脚本（支持 Mac 跨平台构建）
 环境变量:
     DOCKER_REGISTRY       Docker 仓库地址 (默认: docker.io)
     DOCKER_USERNAME       Docker 用户名 (默认: enhou)
-    DOCKER_PASSWORD       Docker 密码/Token
+    DOCKER_PASSWORD       Docker 密码/Token（构建前登录 Docker Hub，避免基础镜像 429 限流）
     IMAGE_NAME            镜像名称 (默认: comfyui-serverless)
     IMAGE_TAG             镜像标签 (默认: latest)
     DOCKER_PLATFORM       目标平台 (默认: linux/amd64)
@@ -115,6 +115,7 @@ RunPod Serverless 部署脚本（支持 Mac 跨平台构建）
     - Mac (ARM64) 会自动使用 buildx 进行跨平台构建
     - Linux (AMD64) 可以使用传统 docker build
     - 跨平台构建需要 15-30 分钟，请耐心等待
+    - 基础镜像来自 Docker Hub：未登录时易出现 429，请设置 DOCKER_PASSWORD 或先执行 docker login
 
 EOF
 }
@@ -241,12 +242,38 @@ setup_buildx() {
     log_success "Buildx 构建器已就绪"
 }
 
+# Dockerfile 的 FROM 在 Docker Hub（runpod/worker-comfyui）。未认证拉取易触发 429 Too Many Requests。
+ensure_dockerhub_auth_for_build() {
+    if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
+        log_info "登录 Docker Hub（拉取基础镜像，避免未认证限流 429）..."
+        echo "${DOCKER_PASSWORD}" | docker login docker.io -u "${DOCKER_USERNAME}" --password-stdin
+    else
+        log_warning "未设置 DOCKER_PASSWORD：拉取 Docker Hub 基础镜像可能触发 429（未认证限流）。"
+        log_warning "请先执行: docker login"
+        log_warning "或设置 DOCKER_USERNAME 与 DOCKER_PASSWORD 后重试。"
+        log_warning "说明: https://www.docker.com/increase-rate-limit"
+    fi
+}
+
+# 推送目标若非 docker.io，需单独登录（基础镜像仍在 Docker Hub）。
+ensure_registry_auth_for_push_if_needed() {
+    if [[ -z "${DOCKER_PASSWORD:-}" ]]; then
+        return 0
+    fi
+    if [[ "${DOCKER_REGISTRY}" != "docker.io" ]]; then
+        log_info "登录推送仓库 ${DOCKER_REGISTRY}..."
+        echo "${DOCKER_PASSWORD}" | docker login "${DOCKER_REGISTRY}" -u "${DOCKER_USERNAME}" --password-stdin
+    fi
+}
+
 build_image() {
     log_info "开始构建 Docker 镜像..."
     log_info "镜像名称: ${FULL_IMAGE_NAME}"
     log_info "目标平台: ${DOCKER_PLATFORM}"
     
     cd "${PROJECT_ROOT}"
+    
+    ensure_dockerhub_auth_for_build
     
     if [[ "${USE_BUILDX}" == "true" ]]; then
         # 使用 buildx 跨平台构建
@@ -304,11 +331,9 @@ build_and_push_image() {
     
     cd "${PROJECT_ROOT}"
     
-    # 登录 Docker Registry
-    if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
-        log_info "登录 Docker Registry..."
-        echo "${DOCKER_PASSWORD}" | docker login "${DOCKER_REGISTRY}" -u "${DOCKER_USERNAME}" --password-stdin
-    fi
+    # 先登录 Docker Hub（拉取基础镜像），再按需登录推送仓库
+    ensure_dockerhub_auth_for_build
+    ensure_registry_auth_for_push_if_needed
     
     # 使用 buildx 构建并直接推送
     docker buildx build \
