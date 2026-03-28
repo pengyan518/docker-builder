@@ -11,15 +11,19 @@
 #
 # Usage:
 #   export HF_TOKEN=hf_xxx
+#   # Must match where the Pod mounts the Network Volume — same as RUNPOD_VOLUME_PATH in the image
+#   # (worker-comfyui defaults to /runpod-volume; see scripts/start_with_runpod_volume.sh).
 #   # Optional LoRA from R2: put the same R2_* vars in the shell, or copy your .env into the Pod
 #   # (e.g. scp .env pod:/workspace/.env) — this script auto-loads ./.env if present.
 #   bash download_models_on_pod.sh
+#   # If your volume is mounted elsewhere, e.g. /workspace:
+#   #   bash download_models_on_pod.sh --volume-path /workspace
 #
 #   # Or skip sections you already have:
 #   bash download_models_on_pod.sh --skip-flux --skip-llama
 #
 # Options:
-#   --volume-path PATH   Volume mount path (default: /workspace)
+#   --volume-path PATH   Network Volume mount path (default: /runpod-volume; must match pod mount + start_with_runpod_volume.sh)
 #   --skip-flux          Skip FLUX unet / vae / clip
 #   --skip-siglip        Skip SigLIP
 #   --skip-joy           Skip Joy Caption Two weights
@@ -36,7 +40,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ===== Defaults =====
-VOLUME_PATH="/workspace"
+# Align with Dockerfile / start_with_runpod_volume.sh (RUNPOD_VOLUME_PATH default /runpod-volume).
+# If you previously downloaded to /workspace/models, move or rsync to ${VOLUME_PATH}/models.
+VOLUME_PATH="/runpod-volume"
 SKIP_FLUX=false
 SKIP_SIGLIP=false
 SKIP_JOY=false
