@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-VOL_ROOT="${RUNPOD_VOLUME_PATH:-/runpod-volume}"
+VOL_ROOT="${RUNPOD_VOLUME_PATH:-/workspace}"
 MODELS_ON_VOL="${VOL_ROOT}/models"
 MARKER_UNET="${MODELS_ON_VOL}/unet/flux1-dev.safetensors"
 READY_FLAG="${MODELS_ON_VOL}/.volume_models_ready"
@@ -16,23 +16,23 @@ echo "worker-comfyui: start_with_runpod_volume — RUNPOD_VOLUME_PATH=${RUNPOD_V
 # ComfyUI reads extra_model_paths.yaml at startup. The image ships base_path: /runpod-volume; if the
 # Network Volume is mounted at /workspace, that path does not exist and model lists stay empty ([]).
 # Regenerate this file so base_path always matches the real mount (VOL_ROOT).
-EXTRA_MODEL_PATHS="/comfyui/extra_model_paths.yaml"
-cat >"${EXTRA_MODEL_PATHS}" <<EOF
-# Generated at container start from RUNPOD_VOLUME_PATH (default /runpod-volume). Do not edit in image.
-runpod_worker_comfy:
-  base_path: ${VOL_ROOT}
-  checkpoints: models/checkpoints/
-  clip: models/clip/
-  clip_vision: models/clip_vision/
-  configs: models/configs/
-  controlnet: models/controlnet/
-  embeddings: models/embeddings/
-  loras: models/loras/
-  upscale_models: models/upscale_models/
-  vae: models/vae/
-  unet: models/unet/
-EOF
-echo "worker-comfyui: wrote ${EXTRA_MODEL_PATHS} with base_path: ${VOL_ROOT}"
+# EXTRA_MODEL_PATHS="/comfyui/extra_model_paths.yaml"
+# cat >"${EXTRA_MODEL_PATHS}" <<EOF
+# # Generated at container start from RUNPOD_VOLUME_PATH (default /runpod-volume). Do not edit in image.
+# runpod_worker_comfy:
+#   base_path: ${VOL_ROOT}
+#   checkpoints: models/checkpoints/
+#   clip: models/clip/
+#   clip_vision: models/clip_vision/
+#   configs: models/configs/
+#   controlnet: models/controlnet/
+#   embeddings: models/embeddings/
+#   loras: models/loras/
+#   upscale_models: models/upscale_models/
+#   vae: models/vae/
+#   unet: models/unet/
+# EOF
+# echo "worker-comfyui: wrote ${EXTRA_MODEL_PATHS} with base_path: ${VOL_ROOT}"
 
 if [[ -d "$MODELS_ON_VOL" ]]; then
   if [[ -f "$MARKER_UNET" || -f "$READY_FLAG" ]]; then

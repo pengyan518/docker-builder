@@ -148,6 +148,7 @@ load_environment() {
 		"R2_ACCESS_KEY_ID"
 		"R2_SECRET_ACCESS_KEY"
 		"R2_ENDPOINT"
+		"RUNPOD_VOLUME_PATH"
     )
     
     local var
