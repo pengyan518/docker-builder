@@ -34,11 +34,35 @@ echo "worker-comfyui: start_with_runpod_volume — RUNPOD_VOLUME_PATH=${RUNPOD_V
 # EOF
 # echo "worker-comfyui: wrote ${EXTRA_MODEL_PATHS} with base_path: ${VOL_ROOT}"
 
+COMFYUI_MODELS="/comfyui/models"
+
 if [[ -d "$MODELS_ON_VOL" ]]; then
   if [[ -f "$MARKER_UNET" || -f "$READY_FLAG" ]]; then
     echo "worker-comfyui: Using Network Volume models at ${MODELS_ON_VOL}"
-    rm -rf /comfyui/models
-    ln -sfn "$MODELS_ON_VOL" /comfyui/models
+
+    # Try to replace /comfyui/models entirely with a symlink first.
+    # On Docker overlay FS, rm -rf on an image-layer directory may silently fail,
+    # leaving the original dir intact and causing ln -sfn to create a link *inside*
+    # rather than *replacing* it. Detect this and fall back to per-subdir linking.
+    if rm -rf "${COMFYUI_MODELS}" 2>/dev/null && [[ ! -d "${COMFYUI_MODELS}" ]]; then
+      ln -sfn "$MODELS_ON_VOL" "${COMFYUI_MODELS}"
+      echo "worker-comfyui: Replaced ${COMFYUI_MODELS} -> ${MODELS_ON_VOL} (full symlink)"
+    else
+      echo "worker-comfyui: Cannot remove image-layer ${COMFYUI_MODELS}; linking per subdirectory"
+      for vol_sub in "${MODELS_ON_VOL}"/*/; do
+        sub_name="$(basename "$vol_sub")"
+        target="${COMFYUI_MODELS}/${sub_name}"
+        rm -rf "${target}" 2>/dev/null || true
+        ln -sfn "${vol_sub%/}" "${target}"
+        echo "  ${target} -> ${vol_sub%/}"
+      done
+      # Also link top-level files (e.g. .volume_models_ready)
+      for vol_file in "${MODELS_ON_VOL}"/*; do
+        [[ -f "$vol_file" ]] || continue
+        fname="$(basename "$vol_file")"
+        ln -sf "$vol_file" "${COMFYUI_MODELS}/${fname}"
+      done
+    fi
   else
     echo "worker-comfyui: Network Volume models dir exists but FLUX UNet not found; keeping image /comfyui/models" >&2
     echo "worker-comfyui: Upload models with scripts/upload_models_to_volume.sh" >&2

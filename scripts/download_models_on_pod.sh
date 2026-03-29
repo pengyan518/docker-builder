@@ -42,7 +42,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ===== Defaults =====
 # Align with Dockerfile / start_with_runpod_volume.sh (RUNPOD_VOLUME_PATH default /runpod-volume).
 # If you previously downloaded to /workspace/models, move or rsync to ${VOLUME_PATH}/models.
-VOLUME_PATH="/runpod-volume"
+VOLUME_PATH="/workspace"
 SKIP_FLUX=false
 SKIP_SIGLIP=false
 SKIP_JOY=false

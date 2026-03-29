@@ -19,6 +19,11 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+# Patch: joy_caption_two's SigLIP call returns hidden_states=None with newer transformers.
+# Setting output_hidden_states on the model config ensures it's always honoured.
+RUN sed -i '/vision_outputs = self.model(pixel_values=pixel_values, output_hidden_states=True)/i\        self.model.config.output_hidden_states = True' \
+    /comfyui/custom_nodes/comfyui_slk_joy_caption_two/joy_caption_two_node.py
+
 # Network Volume layout: /runpod-volume/models/...  (S3 sync from upload script)
 COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
 
