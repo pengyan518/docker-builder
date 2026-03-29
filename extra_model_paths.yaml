@@ -2,7 +2,8 @@
 # When using scripts/start_with_runpod_volume.sh, /comfyui/models is symlinked to this path;
 # these entries remain valid as secondary paths (same physical files).
 runpod_worker_comfy:
-  base_path: /runpod-volume
+  # base_path: /runpod-volume
+  base_path: /workspace
   checkpoints: models/checkpoints/
   clip: models/clip/
   clip_vision: models/clip_vision/
