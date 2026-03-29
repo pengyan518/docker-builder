@@ -1,5 +1,11 @@
 # RunPod worker-comfyui with custom nodes; large models live on Network Volume (see scripts/upload_models_to_volume.sh).
-FROM runpod/worker-comfyui:5.8.5-base
+#
+# 5.8.5-base ships CUDA 12.6. Some RunPod GPU nodes have older drivers; the runtime then fails before your CMD runs:
+#   nvidia-container-cli: unsatisfied condition: cuda>=12.6
+# 5.5.1-base uses an older CUDA stack and is compatible with more hosts (same pattern as Dockerfile.upscale).
+# Rebuild with: docker build --build-arg WORKER_COMFYUI_TAG=5.8.5-base ...  when your provider supports CUDA 12.6+.
+ARG WORKER_COMFYUI_TAG=5.5.1-base
+FROM runpod/worker-comfyui:${WORKER_COMFYUI_TAG}
 
 # Optional: runtime HF token for nodes that download on demand (not required if all models are on volume).
 ARG HF_TOKEN=""
