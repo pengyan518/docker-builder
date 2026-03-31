@@ -4,10 +4,6 @@ FROM runpod/worker-comfyui:5.8.5-base
 # Set Hugging Face token (build argument)
 ARG HF_TOKEN
 ARG CIVITAI_TOKEN
-# R2 credentials for downloading models
-ARG R2_ENDPOINT
-ARG R2_ACCESS_KEY_ID
-ARG R2_SECRET_ACCESS_KEY
 
 ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
 ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
@@ -49,6 +45,8 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingfac
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/lokCX/4x-Ultrasharp/resolve/main/4x-UltraSharp.pth?download=true --relative-path models/upscale_models --filename 4x-UltraSharp.pth
 # https://civitai.com/api/download/models/2052724?type=Model&format=PickleTensor
 
+# Flux 4-step LoRA: public HF weights, saved as workflow filename (no R2/rclone during build; avoids 403 when CI has no R2 secrets).
+RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url "https://huggingface.co/Lingyuzhou/Hyper_Flux.1_Dev_4_step_Lora/resolve/main/Hyper-Flux.1-Dev%204-step-Lora.safetensors" --relative-path models/loras --filename lora_Flux_Dev_4-step.safetensors
 
 # Joy Caption Two weights (required by ComfyUI_SLK_joy_caption_two; install alone does not fetch them).
 # Copy of HF Space folder cgrkzexw-599808 -> ComfyUI models/Joy_caption_two (see EvilBT readme_us.md).
@@ -64,27 +62,6 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingfac
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/spaces/fancyfeast/joy-caption-alpha-two/resolve/main/cgrkzexw-599808/text_model/tokenizer_config.json --relative-path models/Joy_caption_two/text_model --filename tokenizer_config.json
 # download models using comfy-cli
 # the "--filename" is what you use in your ComfyUI workflow
-
-
-
-# Install rclone for R2 downloads
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unzip && \
-    curl https://rclone.org/install.sh | bash && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Configure rclone for R2 (non-interactive)
-RUN mkdir -p /root/.config/rclone && \
-    echo "[myR2]" > /root/.config/rclone/rclone.conf && \
-    echo "type = s3" >> /root/.config/rclone/rclone.conf && \
-    echo "provider = Cloudflare" >> /root/.config/rclone/rclone.conf && \
-    echo "access_key_id = ${R2_ACCESS_KEY_ID}" >> /root/.config/rclone/rclone.conf && \
-    echo "secret_access_key = ${R2_SECRET_ACCESS_KEY}" >> /root/.config/rclone/rclone.conf && \
-    echo "endpoint = ${R2_ENDPOINT}" >> /root/.config/rclone/rclone.conf && \
-    echo "acl = private" >> /root/.config/rclone/rclone.conf
-
-# Download lora models from R2
-RUN rclone copyto myR2:my-ai-models/models/lora/lora_Flux_Dev_4-step.safetensors /comfyui/models/loras/lora_Flux_Dev_4-step.safetensors --config /root/.config/rclone/rclone.conf
-# RUN rclone copyto myR2:my-ai-models/models/lora/shuimo_BRairt.F1_V1.safetensors /comfyui/models/loras/shuimo_BRairt.F1_V1.safetensors --config /root/.config/rclone/rclone.conf
 
 # Optional: other models (commented out for now)
 # RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
