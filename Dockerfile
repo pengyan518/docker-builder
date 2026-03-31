@@ -19,6 +19,13 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+# Joy node only looks under folder_paths.models_dir (/comfyui/models/Joy_caption_two).
+# extra_model_paths.yaml does not map Joy_caption_two. RunPod often overrides CMD with
+# `python main.py`, so start_with_runpod_volume.sh never runs and volume weights are invisible.
+# This patch falls back to ${RUNPOD_VOLUME_PATH:-/workspace}/models/Joy_caption_two when needed.
+COPY scripts/patch_joy_caption_two_base_path.py /usr/local/bin/patch_joy_caption_two_base_path.py
+RUN python3 /usr/local/bin/patch_joy_caption_two_base_path.py
+
 # Patch: joy_caption_two's SigLIP call returns hidden_states=None with newer transformers.
 # Setting output_hidden_states on the model config ensures it's always honoured.
 RUN sed -i '/vision_outputs = self.model(pixel_values=pixel_values, output_hidden_states=True)/i\        self.model.config.output_hidden_states = True' \
