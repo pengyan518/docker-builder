@@ -1,6 +1,13 @@
-# Same as Dockerfile (Network Volume for models).
-FROM runpod/worker-comfyui:5.8.5-base
+# RunPod worker-comfyui with custom nodes; large models live on Network Volume (see scripts/upload_models_to_volume.sh).
+#
+# 5.8.5-base ships CUDA 12.6. Some RunPod GPU nodes have older drivers; the runtime then fails before your CMD runs:
+#   nvidia-container-cli: unsatisfied condition: cuda>=12.6
+# 5.5.1-base uses an older CUDA stack and is compatible with more hosts (same pattern as Dockerfile.upscale).
+# Rebuild with: docker build --build-arg WORKER_COMFYUI_TAG=5.8.5-base ...  when your provider supports CUDA 12.6+.
+ARG WORKER_COMFYUI_TAG=5.5.1-base
+FROM runpod/worker-comfyui:${WORKER_COMFYUI_TAG}
 
+# Optional: runtime HF token for nodes that download on demand (not required if all models are on volume).
 ARG HF_TOKEN=""
 ENV HUGGINGFACE_TOKEN=${HF_TOKEN}
 ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
@@ -12,15 +19,23 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+# Joy node only looks under folder_paths.models_dir (/comfyui/models/Joy_caption_two).
+# extra_model_paths.yaml does not map Joy_caption_two. RunPod often overrides CMD with
+# `python main.py`, so start_with_runpod_volume.sh never runs and volume weights are invisible.
+# This patch falls back to ${RUNPOD_VOLUME_PATH:-/workspace}/models/Joy_caption_two when needed.
+COPY scripts/patch_joy_caption_two_base_path.py /usr/local/bin/patch_joy_caption_two_base_path.py
+RUN python3 /usr/local/bin/patch_joy_caption_two_base_path.py
+
+# Patch: joy_caption_two's SigLIP call returns hidden_states=None with newer transformers.
+# Setting output_hidden_states on the model config ensures it's always honoured.
+RUN sed -i '/vision_outputs = self.model(pixel_values=pixel_values, output_hidden_states=True)/i\        self.model.config.output_hidden_states = True' \
+    /comfyui/custom_nodes/comfyui_slk_joy_caption_two/joy_caption_two_node.py
+
+# Network Volume layout: /runpod-volume/models/...  (S3 sync from upload script)
 COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
 
+# Symlink /comfyui/models -> volume when flux unet or .volume_models_ready is present
 COPY scripts/start_with_runpod_volume.sh /usr/local/bin/start_with_runpod_volume.sh
 RUN chmod +x /usr/local/bin/start_with_runpod_volume.sh
 
 CMD ["/usr/local/bin/start_with_runpod_volume.sh"]
-
-# Optional: other models (commented out)
-# RUN comfy model download --url https://huggingface.co/shiertier/clip_vision/resolve/main/SD15/model.safetensors --relative-path models/clip_vision --filename models.safetensors
-# RUN comfy model download --url https://huggingface.co/lllyasviel/ic-light/resolve/main/iclight_sd15_fcon.safetensors --relative-path models/diffusion_models --filename iclight_sd15_fcon.safetensors
-# COPY input/ /comfyui/input/
-# RUN comfy model download --set-hf-api-token ${HF_TOKEN} --url https://huggingface.co/camenduru/SUPIR/resolve/main/SUPIR-v0F.ckpt?download=true --relative-path models/upscale_models --filename SUPIR-v0F.ckpt
