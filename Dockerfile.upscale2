@@ -30,6 +30,9 @@ RUN python3 /usr/local/bin/patch_joy_caption_two_base_path.py
 # Setting output_hidden_states on the model config ensures it's always honoured.
 RUN sed -i '/vision_outputs = self.model(pixel_values=pixel_values, output_hidden_states=True)/i\        self.model.config.output_hidden_states = True' \
     /comfyui/custom_nodes/comfyui_slk_joy_caption_two/joy_caption_two_node.py
+# SigLIP: transformers exposes read-only .device; ModelPatcher assigns after .to() — patch ComfyUI core.
+COPY scripts/patch_comfy_model_patcher_device.py /usr/local/bin/patch_comfy_model_patcher_device.py
+RUN python3 /usr/local/bin/patch_comfy_model_patcher_device.py
 
 # Network Volume layout: /runpod-volume/models/...  (S3 sync from upload script)
 COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
