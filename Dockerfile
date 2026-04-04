@@ -24,8 +24,9 @@ RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 # Same as slim Dockerfile: volume fallback when CMD bypasses symlink startup; SigLIP hidden_states fix.
 COPY scripts/patch_joy_caption_two_base_path.py /usr/local/bin/patch_joy_caption_two_base_path.py
 RUN python3 /usr/local/bin/patch_joy_caption_two_base_path.py
-RUN sed -i '/vision_outputs = self.model(pixel_values=pixel_values, output_hidden_states=True)/i\        self.model.config.output_hidden_states = True' \
-    /comfyui/custom_nodes/comfyui_slk_joy_caption_two/joy_caption_two_node.py
+# SigLIP hidden_states fix: newer transformers ignores the kwarg; force it via config at init + call time.
+COPY scripts/patch_joy_caption_siglip_hidden_states.py /usr/local/bin/patch_joy_caption_siglip_hidden_states.py
+RUN python3 /usr/local/bin/patch_joy_caption_siglip_hidden_states.py
 # SigLIP: transformers exposes read-only .device; ModelPatcher assigns after .to() — patch ComfyUI core.
 COPY scripts/patch_comfy_model_patcher_device.py /usr/local/bin/patch_comfy_model_patcher_device.py
 RUN python3 /usr/local/bin/patch_comfy_model_patcher_device.py
