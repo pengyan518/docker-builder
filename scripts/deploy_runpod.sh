@@ -14,6 +14,7 @@
 #   --build-only    仅构建镜像，不推送
 #   --push-only     仅推送镜像，不构建
 #   --skip-tests    跳过测试
+#   --no-cache      构建时禁用 Docker 层缓存
 #   --help          显示帮助信息
 
 set -euo pipefail
@@ -33,6 +34,7 @@ FULL_IMAGE_NAME="${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG
 DOCKER_PLATFORM="${DOCKER_PLATFORM:-linux/amd64}"
 USE_BUILDX="${USE_BUILDX:-auto}"  # auto, true, false
 BUILDX_BUILDER="${BUILDX_BUILDER:-runpod-builder}"
+BUILD_NO_CACHE="${BUILD_NO_CACHE:-false}"  # true, false
 
 # RunPod 配置
 RUNPOD_API_KEY="${RUNPOD_API_KEY:-}"
@@ -76,6 +78,7 @@ RunPod Serverless 部署脚本（支持 Mac 跨平台构建）
     --build-only     仅构建镜像，不推送
     --push-only      仅推送镜像，不构建
     --skip-tests     跳过测试
+    --no-cache       构建时禁用 Docker 层缓存（强制重新执行补丁与下载层）
     --use-buildx     强制使用 buildx 跨平台构建
     --no-buildx      强制使用传统 docker build
     --help           显示此帮助信息
@@ -88,6 +91,7 @@ RunPod Serverless 部署脚本（支持 Mac 跨平台构建）
     IMAGE_TAG             镜像标签 (默认: latest)
     DOCKER_PLATFORM       目标平台 (默认: linux/amd64)
     USE_BUILDX            使用 buildx (默认: auto)
+    BUILD_NO_CACHE        构建时禁用缓存 (默认: false)
     RUNPOD_API_KEY        RunPod API 密钥
     RUNPOD_ENDPOINT_ID    RunPod Endpoint ID (可选)
     HF_TOKEN              Hugging Face Token (用于下载模型)
@@ -275,6 +279,11 @@ build_image() {
     cd "${PROJECT_ROOT}"
     
     ensure_dockerhub_auth_for_build
+    local no_cache_args=()
+    if [[ "${BUILD_NO_CACHE}" == "true" ]]; then
+        no_cache_args+=(--no-cache)
+        log_warning "已启用 --no-cache：将禁用构建层缓存，构建耗时会增加"
+    fi
     
     if [[ "${USE_BUILDX}" == "true" ]]; then
         # 使用 buildx 跨平台构建
@@ -286,6 +295,7 @@ build_image() {
             --build-arg HF_TOKEN="${HF_TOKEN:-}" \
             -f Dockerfile \
             -t "${FULL_IMAGE_NAME}" \
+            "${no_cache_args[@]}" \
             --load \
             --progress=plain \
             .
@@ -300,6 +310,7 @@ build_image() {
             -t "${FULL_IMAGE_NAME}" \
             --build-arg HF_TOKEN="${HF_TOKEN:-}" \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
+            "${no_cache_args[@]}" \
             --progress=plain \
             .
     fi
@@ -335,6 +346,11 @@ build_and_push_image() {
     # 先登录 Docker Hub（拉取基础镜像），再按需登录推送仓库
     ensure_dockerhub_auth_for_build
     ensure_registry_auth_for_push_if_needed
+    local no_cache_args=()
+    if [[ "${BUILD_NO_CACHE}" == "true" ]]; then
+        no_cache_args+=(--no-cache)
+        log_warning "已启用 --no-cache：将禁用构建层缓存，构建耗时会增加"
+    fi
     
     # 使用 buildx 构建并直接推送
     docker buildx build \
@@ -342,6 +358,7 @@ build_and_push_image() {
         -f Dockerfile \
         -t "${FULL_IMAGE_NAME}" \
         --build-arg HF_TOKEN="${HF_TOKEN:-}" \
+        "${no_cache_args[@]}" \
         --push \
         --progress=plain \
         .
@@ -470,6 +487,10 @@ main() {
                 ;;
             --skip-tests)
                 SKIP_TESTS=true
+                shift
+                ;;
+            --no-cache)
+                BUILD_NO_CACHE="true"
                 shift
                 ;;
             --use-buildx)
