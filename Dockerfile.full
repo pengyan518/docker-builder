@@ -25,6 +25,9 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+# Pin transformers<5: v5.x has bnb-4bit + PEFT adapter loading bugs (caching_allocator_warmup / get_submodule).
+RUN pip install "transformers>=4.45,<5"
+
 # Same as slim Dockerfile: volume fallback when CMD bypasses symlink startup; SigLIP hidden_states fix.
 COPY scripts/patch_joy_caption_two_base_path.py /usr/local/bin/patch_joy_caption_two_base_path.py
 RUN python3 /usr/local/bin/patch_joy_caption_two_base_path.py

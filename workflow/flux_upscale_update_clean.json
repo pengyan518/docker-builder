@@ -113,7 +113,7 @@
   },
   "70": {
     "inputs": {
-      "noise_seed": 855292698449506
+      "noise_seed": 393952793632379
     },
     "class_type": "RandomNoise",
     "_meta": {
@@ -353,36 +353,6 @@
     "class_type": "ImageResizeKJ",
     "_meta": {
       "title": "Resize Image (deprecated)"
-    }
-  },
-  "245": {
-    "inputs": {
-      "rgthree_comparer": {
-        "images": [
-          {
-            "name": "A",
-            "selected": true,
-            "url": "https://images-tmp-wm.liblib.cloud/sd-images/23a62385e10ded3d97a67dfca52fda72aff43225ac38d04cfca20d453a8006ad.png?filename=sd-images/23a62385e10ded3d97a67dfca52fda72aff43225ac38d04cfca20d453a8006ad.png&type=output&rand=0.8750117895769384"
-          },
-          {
-            "name": "B",
-            "selected": true,
-            "url": "https://images-tmp-wm.liblib.cloud/sd-images/cdf76b6a1a62a6260c5d387866e84e37e16e92908b8e3c4b250ee586207d9099.png?filename=sd-images/cdf76b6a1a62a6260c5d387866e84e37e16e92908b8e3c4b250ee586207d9099.png&type=output&rand=0.0523381040848252"
-          }
-        ]
-      },
-      "image_a": [
-        "233",
-        0
-      ],
-      "image_b": [
-        "127",
-        0
-      ]
-    },
-    "class_type": "Image Comparer (rgthree)",
-    "_meta": {
-      "title": "Image Comparer (rgthree)"
     }
   },
   "246": {

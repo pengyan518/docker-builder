@@ -19,6 +19,9 @@ RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 RUN comfy-node-install https://github.com/yolain/ComfyUI-Easy-Use
 RUN comfy-node-install https://github.com/EvilBT/ComfyUI_SLK_joy_caption_two
 
+# Pin transformers<5: v5.x has bnb-4bit + PEFT adapter loading bugs (caching_allocator_warmup / get_submodule).
+RUN pip install "transformers>=4.45,<5"
+
 # Joy node only looks under folder_paths.models_dir (/comfyui/models/Joy_caption_two).
 # extra_model_paths.yaml does not map Joy_caption_two. RunPod often overrides CMD with
 # `python main.py`, so start_with_runpod_volume.sh never runs and volume weights are invisible.
