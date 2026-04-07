@@ -4,7 +4,7 @@
 #   nvidia-container-cli: unsatisfied condition: cuda>=12.6
 # 5.5.1-base uses an older CUDA stack and is compatible with more hosts (same pattern as Dockerfile.upscale).
 # Rebuild with: docker build --build-arg WORKER_COMFYUI_TAG=5.8.5-base ...  when your provider supports CUDA 12.6+.
-ARG WORKER_COMFYUI_TAG=5.5.1-base
+ARG WORKER_COMFYUI_TAG=5.8.5-base
 FROM runpod/worker-comfyui:${WORKER_COMFYUI_TAG}
 
 # Optional: runtime HF token for nodes that download on demand (not required if all models are on volume).
