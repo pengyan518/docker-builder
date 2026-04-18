@@ -12,7 +12,7 @@
   },
   "2": {
     "inputs": {
-      "unet_name": "FLUX.2-klein-9b-fp8-v2_flux2 Klein b9",
+      "unet_name": "flux-2-klein-9b-fp8.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -22,7 +22,7 @@
   },
   "3": {
     "inputs": {
-      "seed": 912948147686455,
+      "seed": 571275177320030,
       "steps": 6,
       "cfg": 1,
       "sampler_name": "euler",
@@ -164,12 +164,12 @@
           {
             "name": "A",
             "selected": true,
-            "url": "https://images-tmp-wm.liblib.cloud/sd-images/02776fcc77627e1b7780c72631511279ecc5ae181424aba5befb83f6b35eb070.png?filename=sd-images/02776fcc77627e1b7780c72631511279ecc5ae181424aba5befb83f6b35eb070.png&type=output&rand=0.8784950875213087"
+            "url": "/api/view?filename=rgthree.compare._temp_qepbt_00001_.png&type=temp&subfolder=&rand=0.4730086449672095"
           },
           {
             "name": "B",
             "selected": true,
-            "url": "https://images-tmp-wm.liblib.cloud/sd-images/b2be474b9afade678b1f4fe266e62fef3dba753d803ea5ecd2afd8e1e49e4166.png?filename=sd-images/b2be474b9afade678b1f4fe266e62fef3dba753d803ea5ecd2afd8e1e49e4166.png&type=output&rand=0.9517531238787599"
+            "url": "/api/view?filename=rgthree.compare._temp_qepbt_00002_.png&type=temp&subfolder=&rand=0.6956889753468947"
           }
         ]
       },
@@ -189,7 +189,7 @@
   },
   "14": {
     "inputs": {
-      "image": "bg.jpeg"
+      "image": "home.png"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -346,7 +346,7 @@
   },
   "24": {
     "inputs": {
-      "seed": 872954407864901,
+      "seed": 836842559,
       "resolution": 1024,
       "max_resolution": 0,
       "batch_size": 1,

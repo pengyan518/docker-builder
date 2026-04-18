@@ -7,6 +7,8 @@ ENV HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
 
 RUN comfy-node-install https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
 RUN comfy-node-install https://github.com/BadCafeCode/masquerade-nodes-comfyui
+RUN comfy-node-install https://github.com/pythongosssss/ComfyUI-Custom-Scripts
+RUN comfy-node-install https://github.com/cubiq/ComfyUI_essentials
 
 # --- FLUX2 Klein 模型 ---
 # Text encoder (Qwen3 8B FP8, 单文件, 8.66GB)
