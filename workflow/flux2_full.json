@@ -272,7 +272,7 @@
       "interpolation": "lanczos",
       "method": "stretch",
       "condition": "always",
-      "multiple_of": 8,
+      "multiple_of": 48,
       "image": [
         "15",
         0

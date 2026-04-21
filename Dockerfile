@@ -27,17 +27,17 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} \
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} \
     --url https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-fp8/resolve/main/flux-2-klein-9b-fp8.safetensors \
     --relative-path models/unet \
-    --filename "FLUX.2-klein-9b-fp8-v2_flux2 Klein b9"
+    --filename flux-2-klein-9b-fp8.safetensors
 
 # --- SeedVR2 超分模型 (可选 bake) ---
 # DiT 模型 (16.5GB)
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} \
     --url https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/seedvr2_ema_7b_sharp_fp16.safetensors \
-    --relative-path models/seedvr2 \
+    --relative-path models/SEEDVR2 \
     --filename seedvr2_ema_7b_sharp_fp16.safetensors
 
 # VAE (501MB)
 RUN comfy model download --set-hf-api-token ${HF_TOKEN} \
     --url https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors \
-    --relative-path models/seedvr2 \
+    --relative-path models/SEEDVR2 \
     --filename ema_vae_fp16.safetensors
