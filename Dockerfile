@@ -41,3 +41,7 @@ RUN comfy model download --set-hf-api-token ${HF_TOKEN} \
     --url https://huggingface.co/numz/SeedVR2_comfyUI/resolve/main/ema_vae_fp16.safetensors \
     --relative-path models/SEEDVR2 \
     --filename ema_vae_fp16.safetensors
+
+
+COPY scripts/comfyui-register.sh /comfyui/scripts/comfyui-register.sh
+RUN chmod +x /comfyui/scripts/comfyui-register.sh
